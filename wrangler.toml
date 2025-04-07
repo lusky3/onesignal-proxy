@@ -1,6 +1,6 @@
 name = "onesignal-proxy"
 main = "worker.js"
-compatibility_date = "2025-04-04"
+compatibility_date = "2025-04-06"
 
 [vars]
 PROXY_DOMAIN = "push.example.com"    # Your proxy domain
