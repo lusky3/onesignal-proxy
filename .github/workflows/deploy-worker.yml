@@ -27,9 +27,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-wrangler-v3-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-wrangler-v4-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-wrangler-v3-
+            ${{ runner.os }}-wrangler-v4-
             ${{ runner.os }}-wrangler-
 
       - name: Install Wrangler
