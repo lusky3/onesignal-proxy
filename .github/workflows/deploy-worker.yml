@@ -77,12 +77,16 @@ jobs:
             echo "Assigned MAIN_DOMAIN from wrangler.toml: $MAIN_DOMAIN"
           fi
 
+          echo "Updating wrangler.toml with validated values..."
+          sed -i "s|PROXY_DOMAIN = \".*\"|PROXY_DOMAIN = \"$PROXY_DOMAIN\"|" wrangler.toml
+          sed -i "s|MAIN_DOMAIN = \".*\"|MAIN_DOMAIN = \"$MAIN_DOMAIN\"|" wrangler.toml
+
           if [ "$PROXY_DOMAIN" = "push.example.com" ]; then
-            echo "Error: PROXY_DOMAIN is 'push.example.com', which is not allowed. Secret: '${{ secrets.PROXY_DOMAIN }}', wrangler.toml: '${{ steps.extract.outputs.proxy_domain_from_toml }}'"
+            echo "Error: PROXY_DOMAIN is 'push.example.com', which is not allowed. Secret: '${{ secrets.PROXY_DOMAIN }}', wrangler.toml original: '${{ steps.extract.outputs.proxy_domain_from_toml }}'"
             exit 1
           fi
           if [ "$MAIN_DOMAIN" = "example.com" ]; then
-            echo "Error: MAIN_DOMAIN is 'example.com', which is not allowed. Secret: '${{ secrets.MAIN_DOMAIN }}', wrangler.toml: '${{ steps.extract.outputs.main_domain_from_toml }}'"
+            echo "Error: MAIN_DOMAIN is 'example.com', which is not allowed. Secret: '${{ secrets.MAIN_DOMAIN }}', wrangler.toml original: '${{ steps.extract.outputs.main_domain_from_toml }}'"
             exit 1
           fi
 
@@ -145,6 +149,7 @@ jobs:
       - name: Update Wrangler Route
         run: |
           sed -i "s|pattern = \"${{ steps.vars.outputs.proxy_domain }}/*\"|pattern = \"${{ steps.vars.outputs.proxy_domain }}/*\"|" wrangler.toml
+          echo "Updated wrangler.toml pattern to: ${{ steps.vars.outputs.proxy_domain }}/*"
 
       - name: Deploy to CloudFlare
         id: deploy
