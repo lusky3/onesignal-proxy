@@ -1,0 +1,151 @@
+name: Deploy CloudFlare Worker
+
+on:
+  push:
+    paths:
+      - 'worker.js'
+      - 'wrangler.toml'
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      - name: Cache Wrangler
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-wrangler-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-wrangler-
+
+      - name: Install Wrangler
+        run: npm install -g @cloudflare/wrangler
+
+      - name: Extract Variables from wrangler.toml
+        id: extract
+        run: |
+          if [ ! -f wrangler.toml ]; then
+            echo "Error: wrangler.toml is missing!"
+            exit 1
+          fi
+          PROXY_DOMAIN_TOML=$(grep 'PROXY_DOMAIN' wrangler.toml | cut -d'"' -f2 || echo "push.example.com")
+          MAIN_DOMAIN_TOML=$(grep 'MAIN_DOMAIN' wrangler.toml | cut -d'"' -f2 || echo "example.com")
+          if [ -z "$PROXY_DOMAIN_TOML" ]; then
+            PROXY_DOMAIN_TOML="push.example.com"
+            echo "Warning: PROXY_DOMAIN not found in wrangler.toml, defaulting to '$PROXY_DOMAIN_TOML'"
+          fi
+          if [ -z "$MAIN_DOMAIN_TOML" ]; then
+            MAIN_DOMAIN_TOML="example.com"
+            echo "Warning: MAIN_DOMAIN not found in wrangler.toml, defaulting to '$MAIN_DOMAIN_TOML'"
+          fi
+          echo "proxy_domain_from_toml=$PROXY_DOMAIN_TOML" >> $GITHUB_OUTPUT
+          echo "main_domain_from_toml=$MAIN_DOMAIN_TOML" >> $GITHUB_OUTPUT
+
+      - name: Set Dynamic Variables and Validate
+        id: vars
+        run: |
+          PROXY_DOMAIN="${{ secrets.PROXY_DOMAIN }}"
+          MAIN_DOMAIN="${{ secrets.MAIN_DOMAIN }}"
+
+          if [ -z "$PROXY_DOMAIN" ]; then
+            PROXY_DOMAIN="${{ steps.extract.outputs.proxy_domain_from_toml }}"
+            echo "Using PROXY_DOMAIN from wrangler.toml: $PROXY_DOMAIN"
+          else
+            echo "Using PROXY_DOMAIN from secret: $PROXY_DOMAIN"
+          fi
+
+          if [ -z "$MAIN_DOMAIN" ]; then
+            MAIN_DOMAIN="${{ steps.extract.outputs.main_domain_from_toml }}"
+            echo "Using MAIN_DOMAIN from wrangler.toml: $MAIN_DOMAIN"
+          else
+            echo "Using MAIN_DOMAIN from secret: $MAIN_DOMAIN"
+          fi
+
+          # Validate PROXY_DOMAIN
+          if [ "$PROXY_DOMAIN" = "push.example.com" ] && [ -z "${{ secrets.PROXY_DOMAIN }}" ]; then
+            echo "Error: PROXY_DOMAIN is set to the default 'push.example.com' and no secret is provided."
+            exit 1
+          fi
+
+          # Validate MAIN_DOMAIN
+          if ! echo "$MAIN_DOMAIN" | grep -qE '^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$'; then
+            echo "Error: Invalid MAIN_DOMAIN '$MAIN_DOMAIN'. Must be a valid domain (e.g., 'myactualdomain.com', 'somedomain.co.uk')."
+            exit 1
+          elif [ "$MAIN_DOMAIN" = "example.com" ] && [ -z "${{ secrets.MAIN_DOMAIN }}" ]; then
+            echo "Error: MAIN_DOMAIN is set to the default 'example.com' and no secret is provided."
+            exit 1
+          fi
+          echo "MAIN_DOMAIN '$MAIN_DOMAIN' is valid."
+
+          echo "proxy_domain=$PROXY_DOMAIN" >> $GITHUB_OUTPUT
+          echo "main_domain=$MAIN_DOMAIN" >> $GITHUB_OUTPUT
+
+      - name: Check Credentials
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ] || [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "Error: CloudFlare credentials missing!"
+            exit 1
+          fi
+          echo "Credentials verified."
+
+      - name: Configure Wrangler
+        run: |
+          echo "CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }}" > ~/.wrangler/config.json
+          echo "account_id = \"${{ secrets.CLOUDFLARE_ACCOUNT_ID }}\"" >> ~/.wrangler/config.json
+
+      - name: Update Wrangler Route
+        run: |
+          sed -i "s|route = \"${{ steps.vars.outputs.proxy_domain }}/*\"|route = \"${{ steps.vars.outputs.proxy_domain }}/*\"|" wrangler.toml
+
+      - name: Deploy to CloudFlare
+        id: deploy
+        run: wrangler publish
+        env:
+          WRANGLER_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Test Worker Deployment
+        run: |
+          echo "Waiting 30 seconds for Worker propagation..."
+          sleep 30
+          PROXY_URL="https://${{ steps.vars.outputs.proxy_domain }}/sdks/web/v16/pushSDK.js"
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" $PROXY_URL)
+          if [ $STATUS_CODE -ne 200 ]; then
+            echo "Deployment test failed: Status $STATUS_CODE from $PROXY_URL"
+            exit 1  # Fails the job, skips success notification, triggers failure notification
+          fi
+          echo "Deployment test passed: Status $STATUS_CODE from $PROXY_URL"
+
+      - name: Notify Discord on Success
+        if: success() && env.DISCORD_WEBHOOK_URL != ''
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }}
+          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
+          color: "#48f442"  # Green for success
+          username: "Deploy Bot"
+          message: "CloudFlare Worker Deployment Successful! Repository: ${{ github.repository }}, Commit: ${{ github.sha }}, Deployed to: ${{ steps.vars.outputs.proxy_domain }}, Status: Success"
+
+      - name: Notify Discord on Failure
+        if: failure() && env.DISCORD_WEBHOOK_URL != ''
+        uses: appleboy/discord-action@v1.2.0
+        with:
+          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }}
+          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
+          color: "#ff0000"  # Red for failure
+          username: "Deploy Bot"
+          message: "CloudFlare Worker Deployment Failed! Repository: ${{ github.repository }}, Commit: ${{ github.sha }}, Deployed to: ${{ steps.vars.outputs.proxy_domain }}, Error: Deployment or test failed (Invalid MAIN_DOMAIN: ${{ steps.vars.outputs.main_domain }}?)"
+
+env:
+  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

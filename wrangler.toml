@@ -1,0 +1,17 @@
+name = "onesignal-proxy"
+main = "worker.js"
+compatibility_date = "2025-04-04"
+
+[vars]
+PROXY_DOMAIN = "pusk.example.com"    # Your proxy domain
+ONESIGNAL_CDN = "cdn.onesignal.com"  # OneSignal CDN domain
+ONESIGNAL_API = "api.onesignal.com"  # OneSignal API domain
+ONESIGNAL_IMG = "img.onesignal.com"  # OneSignal image domain
+SDK_PATH_PREFIX = "/sdks/web/v16/"   # Path prefix for SDK files
+LOCAL_SW_PATH = "/custom-push-sdk/"  # Local service worker path
+LOCAL_SW_FILENAME = "pushWorker.js"  # Renamed local service worker filename
+SDK_FILENAME = "pushSDK.js"          # Renamed SDK filename
+SW_FILENAME = "pushSW.js"            # Renamed service worker filename
+
+[env.production]
+route = "push.example.com/*"  # Route all requests to this subdomain
