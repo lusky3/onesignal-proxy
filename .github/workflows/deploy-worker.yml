@@ -7,6 +7,8 @@ on:
       - 'wrangler.toml'
     branches:
       - main
+      - dev
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -25,8 +27,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-wrangler-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-wrangler-v4-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
+            ${{ runner.os }}-wrangler-v4-
             ${{ runner.os }}-wrangler-
 
       - name: Install Wrangler
@@ -95,7 +98,7 @@ jobs:
             echo "Error: CloudFlare credentials missing!"
             exit 1
           fi
-          echo "CloudFlare credentials exist."
+          echo "CloudFlare credentials found."
 
       - name: Configure Wrangler Routes
         id: config
@@ -142,6 +145,9 @@ jobs:
       - name: Deploy to CloudFlare
         id: deploy
         run: wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Test Worker Deployment
         id: test
@@ -163,7 +169,7 @@ jobs:
           webhook_url: ${{ env.DISCORD_WEBHOOK_URL }}
           color: "#48f442"
           username: "Deploy Bot"
-          message: "CloudFlare Worker Deployment Successful! Repository: ${{ github.repository }}, Commit: ${{ github.sha }}, Deployed to: ${{ steps.vars.outputs.proxy_domain }}, Status: Success"
+          message: "CloudFlare Worker Deployment Successful | Repository: ${{ github.repository }} | Commit: ${{ github.sha }} | Deployed to: ${{ steps.vars.outputs.proxy_domain }} | Status: Success"
 
       - name: Notify Discord on Failure
         if: failure() && env.DISCORD_WEBHOOK_URL != ''
@@ -172,7 +178,7 @@ jobs:
           webhook_url: ${{ env.DISCORD_WEBHOOK_URL }}
           color: "#ff0000"
           username: "Deploy Bot"
-          message: "CloudFlare Worker Deployment Failed! Repository: ${{ github.repository }}, Commit: ${{ github.sha }}, Deployed to: ${{ steps.vars.outputs.proxy_domain || 'unknown' }}, Error: ${{ steps.config.outcome == 'failure' && 'Failed to configure Wrangler' || steps.deploy.outcome == 'failure' && 'Deployment failed' || steps.test.outcome == 'failure' && 'Test failed' || 'Unknown error' }}"
+          message: "CloudFlare Worker Deployment Failed | Repository: ${{ github.repository }} | Commit: ${{ github.sha }} | Deployed to: ${{ steps.vars.outputs.proxy_domain || 'unknown' }} | Error: ${{ steps.config.outcome == 'failure' && 'Failed to configure Wrangler' || steps.deploy.outcome == 'failure' && 'Deployment failed - check API token setup' || steps.test.outcome == 'failure' && 'Test failed' || 'Unknown error' }} | Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
 env:
   DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
