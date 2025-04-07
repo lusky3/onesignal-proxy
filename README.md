@@ -17,7 +17,7 @@ This package proxies OneSignal resources through a custom domain (e.g., `push.ex
    cd onesignal-proxy
    ```
 
-2. Install Wrangler CLI (`npm install -g @cloudflare/wrangler`)
+2. Install Wrangler CLI (`npm install -g wrangler`)
 
 3. Configure `wrangler.toml`:
    - Update `[vars]` with your specific domains and paths (e.g., `PROXY_DOMAIN`, `ONESIGNAL_CDN`, etc.).
