@@ -58,37 +58,31 @@ jobs:
       - name: Set Dynamic Variables and Validate
         id: vars
         run: |
-          PROXY_DOMAIN="${{ secrets.PROXY_DOMAIN }}"
-          MAIN_DOMAIN="${{ secrets.MAIN_DOMAIN }}"
+          echo "Secret PROXY_DOMAIN value: ${{ secrets.PROXY_DOMAIN }}"
+          echo "Secret MAIN_DOMAIN value: ${{ secrets.MAIN_DOMAIN }}"
 
-          if [ -n "${{ secrets.PROXY_DOMAIN }}" ] && [ "$PROXY_DOMAIN" != "${{ secrets.PROXY_DOMAIN }}" ]; then
-            echo "Error: PROXY_DOMAIN secret is set but not applied correctly (got '$PROXY_DOMAIN' instead of '${{ secrets.PROXY_DOMAIN }}')"
-            exit 1
-          fi
-          if [ -z "$PROXY_DOMAIN" ]; then
+          if [ -n "${{ secrets.PROXY_DOMAIN }}" ]; then
+            PROXY_DOMAIN="${{ secrets.PROXY_DOMAIN }}"
+            echo "Assigned PROXY_DOMAIN from secret: $PROXY_DOMAIN"
+          else
             PROXY_DOMAIN="${{ steps.extract.outputs.proxy_domain_from_toml }}"
-            echo "Using PROXY_DOMAIN from wrangler.toml: $PROXY_DOMAIN"
-          else
-            echo "Using PROXY_DOMAIN from secret: $PROXY_DOMAIN"
+            echo "Assigned PROXY_DOMAIN from wrangler.toml: $PROXY_DOMAIN"
           fi
 
-          if [ -n "${{ secrets.MAIN_DOMAIN }}" ] && [ "$MAIN_DOMAIN" != "${{ secrets.MAIN_DOMAIN }}" ]; then
-            echo "Error: MAIN_DOMAIN secret is set but not applied correctly (got '$MAIN_DOMAIN' instead of '${{ secrets.MAIN_DOMAIN }}')"
-            exit 1
-          fi
-          if [ -z "$MAIN_DOMAIN" ]; then
-            MAIN_DOMAIN="${{ steps.extract.outputs.main_domain_from_toml }}"
-            echo "Using MAIN_DOMAIN from wrangler.toml: $MAIN_DOMAIN"
+          if [ -n "${{ secrets.MAIN_DOMAIN }}" ]; then
+            MAIN_DOMAIN="${{ secrets.MAIN_DOMAIN }}"
+            echo "Assigned MAIN_DOMAIN from secret: $MAIN_DOMAIN"
           else
-            echo "Using MAIN_DOMAIN from secret: $MAIN_DOMAIN"
+            MAIN_DOMAIN="${{ steps.extract.outputs.main_domain_from_toml }}"
+            echo "Assigned MAIN_DOMAIN from wrangler.toml: $MAIN_DOMAIN"
           fi
 
           if [ "$PROXY_DOMAIN" = "push.example.com" ]; then
-            echo "Error: PROXY_DOMAIN is 'push.example.com', which is not allowed as a final value."
+            echo "Error: PROXY_DOMAIN is 'push.example.com', which is not allowed. Secret: '${{ secrets.PROXY_DOMAIN }}', wrangler.toml: '${{ steps.extract.outputs.proxy_domain_from_toml }}'"
             exit 1
           fi
           if [ "$MAIN_DOMAIN" = "example.com" ]; then
-            echo "Error: MAIN_DOMAIN is 'example.com', which is not allowed as a final value."
+            echo "Error: MAIN_DOMAIN is 'example.com', which is not allowed. Secret: '${{ secrets.MAIN_DOMAIN }}', wrangler.toml: '${{ steps.extract.outputs.main_domain_from_toml }}'"
             exit 1
           fi
 
@@ -97,7 +91,8 @@ jobs:
             exit 1
           fi
 
-          echo "PROXY_DOMAIN '$PROXY_DOMAIN' and MAIN_DOMAIN '$MAIN_DOMAIN' are valid."
+          echo "Final PROXY_DOMAIN: $PROXY_DOMAIN"
+          echo "Final MAIN_DOMAIN: $MAIN_DOMAIN"
           echo "proxy_domain=$PROXY_DOMAIN" >> $GITHUB_OUTPUT
           echo "main_domain=$MAIN_DOMAIN" >> $GITHUB_OUTPUT
 
