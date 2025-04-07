@@ -3,7 +3,7 @@ main = "worker.js"
 compatibility_date = "2025-04-04"
 
 [vars]
-PROXY_DOMAIN = "pusk.example.com"    # Your proxy domain
+PROXY_DOMAIN = "push.example.com"    # Your proxy domain
 ONESIGNAL_CDN = "cdn.onesignal.com"  # OneSignal CDN domain
 ONESIGNAL_API = "api.onesignal.com"  # OneSignal API domain
 ONESIGNAL_IMG = "img.onesignal.com"  # OneSignal image domain
