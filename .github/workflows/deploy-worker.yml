@@ -131,9 +131,8 @@ jobs:
         if: success() && env.DISCORD_WEBHOOK_URL != ''
         uses: appleboy/discord-action@v1.2.0
         with:
-          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }}
-          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
-          color: "#48f442"  # Green for success
+          webhook_url: ${{ env.DISCORD_WEBHOOK_URL }}
+          color: "#48f442"
           username: "Deploy Bot"
           message: "CloudFlare Worker Deployment Successful! Repository: ${{ github.repository }}, Commit: ${{ github.sha }}, Deployed to: ${{ steps.vars.outputs.proxy_domain }}, Status: Success"
 
@@ -141,9 +140,8 @@ jobs:
         if: failure() && env.DISCORD_WEBHOOK_URL != ''
         uses: appleboy/discord-action@v1.2.0
         with:
-          webhook_id: ${{ secrets.DISCORD_WEBHOOK_ID }}
-          webhook_token: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
-          color: "#ff0000"  # Red for failure
+          webhook_url: ${{ env.DISCORD_WEBHOOK_URL }}
+          color: "#ff0000"
           username: "Deploy Bot"
           message: "CloudFlare Worker Deployment Failed! Repository: ${{ github.repository }}, Commit: ${{ github.sha }}, Deployed to: ${{ steps.vars.outputs.proxy_domain }}, Error: Deployment or test failed (Invalid MAIN_DOMAIN: ${{ steps.vars.outputs.main_domain }}?)"
 
