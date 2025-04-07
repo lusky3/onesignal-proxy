@@ -27,9 +27,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-wrangler-v4-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-wrangler-v3-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-wrangler-v4-
+            ${{ runner.os }}-wrangler-v3-
             ${{ runner.os }}-wrangler-
 
       - name: Install Wrangler
@@ -152,15 +152,19 @@ jobs:
       - name: Test Worker Deployment
         id: test
         run: |
+          echo "Testing Worker at: https://${{ steps.vars.outputs.proxy_domain }}/sdks/web/v16/pushSDK.js"
           echo "Waiting 30 seconds for Worker propagation..."
           sleep 30
           PROXY_URL="https://${{ steps.vars.outputs.proxy_domain }}/sdks/web/v16/pushSDK.js"
-          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" $PROXY_URL)
+          STATUS_CODE=$(curl -s -o response.txt -w "%{http_code}" $PROXY_URL)
           if [ $STATUS_CODE -ne 200 ]; then
             echo "Error: Deployment test failed with status $STATUS_CODE from $PROXY_URL"
+            echo "Response body:"
+            cat response.txt
             exit 1
           fi
           echo "Deployment test passed: Status $STATUS_CODE from $PROXY_URL"
+          rm response.txt
 
       - name: Notify Discord on Success
         if: success() && env.DISCORD_WEBHOOK_URL != ''
