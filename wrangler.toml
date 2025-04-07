@@ -1,6 +1,12 @@
 name = "onesignal-proxy"
 main = "worker.js"
 compatibility_date = "2025-04-06"
+workers_dev = false
+
+[[routes]]
+pattern = "push.example.com/*"
+zone_name = "example.com"
+#zone_id = "00000000000000000000000000000000"
 
 [vars]
 PROXY_DOMAIN = "push.example.com"    # Your proxy domain
@@ -13,5 +19,6 @@ LOCAL_SW_FILENAME = "pushWorker.js"  # Renamed local service worker filename
 SDK_FILENAME = "pushSDK.js"          # Renamed SDK filename
 SW_FILENAME = "pushSW.js"            # Renamed service worker filename
 
-[env.production]
-route = "push.example.com/*"  # Route all requests to this subdomain
+
+[observability]
+enabled = false # Enable for logging
